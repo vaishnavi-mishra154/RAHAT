@@ -1,0 +1,140 @@
+# DevOps Demonstrations: RAHAT
+
+This document serves as your guide to demonstrating the high availability and disaster recovery capabilities of the RAHAT infrastructure.
+
+## Deployment Fix Summary
+The RAHAT API is now successfully deployed and connected to the RDS database.
+- Root Cause: The AWS CLI on Windows failed to parse the inline JSON parameters for the SSM shell script.
+- Fix: Replaced the deployment mechanism with a Python script (deploy.py) that uploads the application files via pre-signed S3 URLs and orchestrates the deployment securely via AWS Systems Manager (SSM) without hitting command-line character limitations.
+- Backend: Fixed /api/health and other endpoints to properly connect to MySQL and validate input data.
+
+You can view the live application at: http://emergency-response-alb-1087402911.ap-south-1.elb.amazonaws.com/
+
+---
+
+## Demo 1: High Availability & Instance Recovery
+
+Goal: Demonstrate that if an EC2 instance crashes or is terminated, the Auto Scaling Group (ASG) detects the failure and provisions a new instance, while the Application Load Balancer (ALB) seamlessly shifts traffic to healthy instances.
+
+Note: Keep the RAHAT dashboard open in your browser during this demonstration. The UI is connected to the ALB and will continue functioning even while an instance is being replaced.
+
+### Step 1: Verify Current Healthy Instances
+Run this command to see the currently running instances in your Auto Scaling Group:
+
+aws autoscaling describe-auto-scaling-instances --query "AutoScalingInstances[*].[InstanceId, LifecycleState, HealthStatus]" --output table
+
+*You should see 2 instances in InService and HEALTHY state.*
+
+### Step 2: Terminate an Instance (Simulate Failure)
+Pick one of the InstanceIds from the previous command and terminate it to simulate a crash.
+
+# Replace <instance-id> with one of your instances (e.g., i-016cedc921cf5b054)
+aws autoscaling terminate-instance-in-auto-scaling-group --instance-id <instance-id> --no-should-decrement-desired-capacity
+
+*Note: --no-should-decrement-desired-capacity tells the ASG to maintain the desired capacity of 2.*
+
+### Step 3: Observe the Recovery
+1. The ALB will immediately fail its health checks for the terminated instance and route all new requests to the remaining healthy instance.
+2. The ASG will detect that it is below its desired capacity of 2.
+3. Watch the ASG spin up a new replacement instance automatically:
+
+# Run this command a few times over the next 2-3 minutes
+aws autoscaling describe-auto-scaling-instances --query "AutoScalingInstances[*].[InstanceId, LifecycleState, HealthStatus]" --output table
+
+
+### Step 4: Final Validation
+Once the new instance says InService, the ALB will begin sending it traffic. Throughout this entire 3-minute process, the frontend dashboard remains available!
+
+---
+
+## Demo 2: Blue-Green Deployment & Rollback
+
+Goal: Demonstrate a zero-downtime deployment by spinning up a new "Green" environment, shifting traffic from the ALB, and rolling back immediately.
+
+### Step 1: Create the Green Target Group
+1. Go to the AWS Console > EC2 > Target Groups.
+2. Create a new target group rahat-tg-green (Port 8080, HTTP).
+3. Use the same health check path /api/health.
+
+### Step 2: Provision Green Instances
+1. Copy your existing Auto Scaling Group (emergency-response-asg) and name it emergency-response-asg-green.
+2. Attach it to rahat-tg-green.
+3. Wait for the new instances to become HEALTHY.
+
+### Step 3: Shift Traffic (The Deployment)
+1. Go to your ALB Listeners.
+2. Edit the rule for Port 80 to forward 100% of traffic to rahat-tg-green (and 0% to the original TG).
+3. Apply the changes. Your application is now running the Green version!
+
+### Step 4: Rollback
+If the Green version fails, immediately edit the ALB listener to forward 100% of traffic back to the original Target Group. Zero downtime rollback!
+
+---
+
+## Demo 3: Regional Failover (Active-Passive)
+
+Goal: Demonstrate how to survive an entire AWS Region outage by failing over to a secondary region (e.g., ap-south-2).
+
+### Step 1: Secondary Infrastructure
+The secondary infrastructure (VPC, ASG, ALB, and RDS Replica) has already been provisioned in ap-south-2 via Terraform. The Route 53 Public Hosted Zone rahat-failover-demo.com has also been created.
+
+### Step 2: Observe Normal Routing (Primary)
+Since the domain is not officially registered with a domain registrar, we will query the Route 53 Name Servers directly to see how it routes traffic.
+Open PowerShell and run this command to ask the Route 53 DNS server where app.rahat-failover-demo.com points:
+
+Resolve-DnsName -Name app.rahat-failover-demo.com -Server ns-1285.awsdns-32.org
+
+You will see it returns the CNAME of the Primary ALB in ap-south-1.
+
+### Step 3: Triggering Failover
+To simulate a regional outage, we will intentionally break the health check of the primary ALB.
+1. Go to AWS Console > EC2 > Security Groups.
+2. Select the emergency-response-alb-sg (Primary ALB Security Group in ap-south-1).
+3. Edit Inbound Rules and delete the rule allowing Port 80.
+4. Wait about 1-2 minutes for the Route 53 Health Check to fail.
+
+### Step 4: Validate Failover
+Run the DNS resolution command again:
+
+Resolve-DnsName -Name app.rahat-failover-demo.com -Server ns-1285.awsdns-32.org
+
+Notice that Route 53 has automatically updated the DNS record to point to the Secondary ALB in ap-south-2! The application remains online despite the primary region "failure".
+
+---
+
+## Demo 4: Cross-Region Database Replication
+
+Goal: Demonstrate how to protect your RDS MySQL data against regional outages and promote a read replica.
+
+### Step 1: Verify Replication
+The Read Replica (emergency-response-db-replica) has already been provisioned in ap-south-2. It is actively replicating all data from the primary database asynchronously.
+
+### Step 2: Disaster Recovery Promotion
+1. In the event ap-south-1 goes completely offline, go to the AWS Console > RDS > Databases.
+2. Switch to the ap-south-2 (Hyderabad) region.
+3. Select emergency-response-db-replica.
+4. Click Actions > Promote.
+5. This severs the replication link and converts it into a standalone writeable primary database. Within a few minutes, the database becomes Available for writes.
+
+---
+
+## Demo 5: CloudWatch Monitoring and Auto-Scaling
+
+Goal: Demonstrate dynamic scaling to handle sudden traffic spikes without manual intervention.
+
+### Step 1: Define Scaling Policy
+1. Go to the Auto Scaling Group emergency-response-asg.
+2. Navigate to Automatic Scaling > Create dynamic scaling policy.
+3. Choose Target tracking scaling.
+4. Metric type: Average CPU utilization. Target value: 50%.
+
+### Step 2: Triggering Auto-Scaling
+1. SSH into one of the EC2 instances.
+2. Install a stress-testing tool: sudo apt-get install stress
+3. Run a CPU load generation command:
+   
+   stress --cpu 4 --timeout 300
+   
+4. Observe: Go to CloudWatch Alarms. The High CPU alarm will enter ALARM state.
+5. The ASG will automatically launch new instances to bring the average CPU below 50%.
+6. Stop the stress test. The ASG will wait for the cooldown period and terminate the extra instances, saving costs.

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAHAT — Emergency Response Platform</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ TOP BAR (mobile) ============ -->
+<header class="topbar">
+  <button class="icon-btn" id="sidebarToggle" aria-label="Toggle navigation">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <div class="topbar-brand">
+    <span class="brand-mark">◆</span>
+    <span>RAHAT</span>
+  </div>
+  <button class="btn btn-primary btn-sm" id="topbarNewIncident">+ New</button>
+</header>
+
+<div class="app-shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark">◆</span>
+      <div>
+        <div class="brand-name">RAHAT</div>
+        <div class="brand-sub">Emergency Response</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-link active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h8V3H3v10zm10 8h8V3h-8v18zM3 21h8v-6H3v6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-link" data-view="incidents">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Incidents
+      </button>
+      <button class="nav-link" data-view="create">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Report Incident
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-pill status-pill--live">
+        <span class="dot"></span> Live (mock data)
+      </div>
+      <div class="sidebar-meta">Region: ap-south-1</div>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <main class="main">
+
+    <!-- ---------- DASHBOARD VIEW ---------- -->
+    <section class="view active" id="view-dashboard">
+      <div class="view-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="view-subtitle">Real-time overview of incident status across all zones.</p>
+        </div>
+        <button class="btn btn-primary" data-goto="create">+ Report Incident</button>
+      </div>
+
+      <div class="stat-grid" id="statGrid">
+        <!-- stat cards injected by JS -->
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Recent Incidents</h2>
+            <button class="link-btn" data-goto="incidents">View all →</button>
+          </div>
+          <div id="recentIncidents" class="recent-list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Severity Overview</h2>
+          </div>
+          <div id="severityOverview" class="severity-overview"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Response Activity</h2>
+          <span class="panel-note">Last 7 days</span>
+        </div>
+        <div id="activityChart" class="activity-chart" aria-label="Bar chart of incidents reported per day"></div>
+      </div>
+    </section>
+
+    <!-- ---------- INCIDENTS LIST VIEW ---------- -->
+    <section class="view" id="view-incidents">
+      <div class="view-header">
+        <div>
+          <h1>Incidents</h1>
+          <p class="view-subtitle">Search, filter, and manage all reported incidents.</p>
+        </div>
+        <button class="btn btn-primary" data-goto="create">+ Report Incident</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="text" id="searchInput" placeholder="Search by title, location, or description…">
+        </div>
+
+        <select id="filterSeverity" class="select-input">
+          <option value="all">All severities</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+
+        <select id="filterStatus" class="select-input">
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="in-progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+
+        <select id="sortBy" class="select-input">
+          <option value="latest">Sort: Latest</option>
+          <option value="severity">Sort: Severity</option>
+        </select>
+
+        <div class="view-toggle" role="group" aria-label="Layout toggle">
+          <button class="view-toggle-btn active" id="layoutCards" aria-label="Card view">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+          <button class="view-toggle-btn" id="layoutTable" aria-label="Table view">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><rect x="3" y="4" width="18" height="16" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="results-meta" id="resultsMeta"></div>
+
+      <div id="incidentsContainer"></div>
+      <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-icon">🔍</div>
+        <h3>No incidents match your filters</h3>
+        <p>Try adjusting your search or filters.</p>
+        <button class="btn btn-secondary" id="clearFiltersBtn">Clear filters</button>
+      </div>
+    </section>
+
+    <!-- ---------- CREATE INCIDENT VIEW ---------- -->
+    <section class="view" id="view-create">
+      <div class="view-header">
+        <div>
+          <h1>Report Incident</h1>
+          <p class="view-subtitle">Submit a new incident for immediate triage and response.</p>
+        </div>
+      </div>
+
+      <div class="panel form-panel">
+        <form id="incidentForm" novalidate>
+          <div class="form-group">
+            <label for="titleInput">Incident title <span class="required">*</span></label>
+            <input type="text" id="titleInput" name="title" placeholder="e.g. Fire reported at Warehouse B" maxlength="120">
+            <span class="field-error" id="titleError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="descriptionInput">Description <span class="required">*</span></label>
+            <textarea id="descriptionInput" name="description" rows="4" placeholder="Describe what happened, who is affected, and any immediate hazards…"></textarea>
+            <span class="field-error" id="descriptionError"></span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="locationInput">Location <span class="required">*</span></label>
+              <input type="text" id="locationInput" name="location" placeholder="e.g. Sector 12, Building A">
+              <span class="field-error" id="locationError"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="severityInput">Severity <span class="required">*</span></label>
+              <select id="severityInput" name="severity">
+                <option value="">Select severity</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <span class="field-error" id="severityError"></span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="resetFormBtn">Reset</button>
+            <button type="submit" class="btn btn-primary" id="submitIncidentBtn">Submit Incident</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ---------- INCIDENT DETAILS VIEW ---------- -->
+    <section class="view" id="view-details">
+      <div class="view-header">
+        <div>
+          <button class="link-btn back-link" data-goto="incidents">← Back to incidents</button>
+          <h1 id="detailTitle">Incident</h1>
+          <p class="view-subtitle" id="detailMeta"></p>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="panel">
+          <div class="panel-header"><h2>Description</h2></div>
+          <p class="detail-description" id="detailDescription"></p>
+
+          <div class="detail-facts">
+            <div class="fact">
+              <span class="fact-label">Location</span>
+              <span class="fact-value" id="detailLocation"></span>
+            </div>
+            <div class="fact">
+              <span class="fact-label">Severity</span>
+              <span class="fact-value" id="detailSeverity"></span>
+            </div>
+            <div class="fact">
+              <span class="fact-label">Current status</span>
+              <span class="fact-value" id="detailStatus"></span>
+            </div>
+            <div class="fact">
+              <span class="fact-label">Created</span>
+              <span class="fact-value" id="detailCreated"></span>
+            </div>
+          </div>
+
+          <div class="panel-header panel-header--tight">
+            <h2>Response Notes</h2>
+          </div>
+          <ul class="notes-list" id="detailNotes"></ul>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>Update Status</h2></div>
+          <p class="panel-note" style="margin-bottom:14px;">Changing status logs a timestamped response note.</p>
+          <div class="status-actions">
+            <button class="btn status-btn status-btn--open" data-status="open">Mark Open</button>
+            <button class="btn status-btn status-btn--progress" data-status="in-progress">Mark In Progress</button>
+            <button class="btn status-btn status-btn--resolved" data-status="resolved">Mark Resolved</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ TOAST / NOTIFICATIONS ============ -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
