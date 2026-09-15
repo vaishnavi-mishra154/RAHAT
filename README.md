@@ -4,6 +4,7 @@
 
 ## 🚀 Features & Architecture
 
+- **assets folder is for ui assets** 
 - **Multi-Region Disaster Recovery:** Deployed across `ap-south-1` (Mumbai, Active) and `ap-south-2` (Hyderabad, Passive).
 - **DNS Failover Routing:** Uses Amazon Route 53 Health Checks to automatically redirect traffic to the secondary region if the primary region goes offline.
 - **Cross-Region Database Replication:** Leverages Amazon RDS (MySQL) with asynchronous cross-region Read Replicas to ensure zero data loss.
